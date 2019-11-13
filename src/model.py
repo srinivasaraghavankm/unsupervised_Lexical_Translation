@@ -3,11 +3,14 @@ __author__ : Kumar shubham
 __date__   :  07-11-2019
 __desc__   : code for unsupervised mapping of the data
 """
+## TODO : Define loss function and other details for the reconstruction loss 
+## TODO : Define model structure 
+## TODO : Define train and gradient tape   
+
 import tf 
 
-class model(object):
-
-	def __init__(self,vocabSize,embedShape,):
+class Model(object):
+	def __init__(self,vocabSize,embedShape):
 		# definig the structure of the CNN model 
 		"""
 		param :
@@ -79,7 +82,5 @@ class model(object):
 		output.add(tf.keras.layers.RepeatVector(timestamp))
 		for idx,hdLayer in layerInfo:
 			output.add(tf.keras.layers.LSTM(hdLayr, activation='relu', return_sequences=True))
-
 		output.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(distributedDense)))
-
 		return output
