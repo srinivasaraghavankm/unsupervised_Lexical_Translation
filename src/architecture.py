@@ -10,14 +10,18 @@ from model import Model
 
 class archForTrain(Model):
 	## defining the structure of the arhitecture for the model traijning 
-	def __init__(self,wordLength,speechLenth):
+	def __init__(self,wordLength,speechLenth,latentSize,speechVecDim,wordVecDim):
 		self.wordLen  = wordLength
 		self.speechLen = speechLenth
+		self.latenSize=latenSize
+		self.speechVecDim = speechVecDim
+		self.wordVecDim = wordVecDim
+
 		super(archForTrain, self).__init__()
 		
 	def textEncoder(self):
 		## defining the model for the encoder 
-		inputVec = tf.keras.layers.Input(shape=[None,128])
+		inputVec = tf.keras.layers.Input(shape=[self.wordLen,self.wordVecDim])
 		## zero paadding 
 		archStructure = [
 
@@ -38,8 +42,8 @@ class archForTrain(Model):
 
 		## concatenate the value in the list 
 		finalOut = tf.keras.layers.Concatenate()(outputList)
-		outputMean = tf.keras.layers.Dense(100)(finalOut)
-		outputVarLog = tf.keras.layers.Dense(100)(finalOut)
+		outputMean = tf.keras.layers.Dense(self.latenSize)(finalOut)
+		outputVarLog = tf.keras.layers.Dense(self.latenSize)(finalOut)
 		return tf.keras.Model(inputs=inputVec,outputs=[outputMean,outputVarLog])
 
 
@@ -47,7 +51,7 @@ class archForTrain(Model):
 		## defining the encoder for the speech 
 		
 		## defining the model for the encoder 
-		inputVec = tf.keras.layers.Input(shape=[None])
+		inputVec = tf.keras.layers.Input(shape=[self.speechLen,self.speechVecDim])
 		archStructure = [
 
 						[self.convStruct(100,10),self.convStruct(50,1)],
@@ -67,43 +71,44 @@ class archForTrain(Model):
 
 		## concatenate the value in the list 
 		finalOut = tf.keras.layers.Concatenate()(outputList)
-		outputMean = tf.keras.layers.Dense(100)(finalOut)
-		outputVarLog = tf.keras.layers.Dense(100)(finalOut)
+		outputMean = tf.keras.layers.Dense(self.latenSize)(finalOut)
+		outputVarLog = tf.keras.layers.Dense(self.latenSize)(finalOut)
 		return tf.keras.Model(inputs=inputVec,outputs=[outputMean,outputVarLog])
 
 		
 
-	def discLoss(self,disOutput,realOutput):
+	def discLoss(self,discwordInp,discSpeechInp):
 		## defining advesarial losss
-		realLoss = self.loss(tf.ones_like(realOutput),realOutput)
+		realLoss = self.loss(tf.ones_like(discwordInp),discwordInp)
 
 		## wrong output loss 
-		advLoss = self.loss(tf.zeros_like(disOutput),disOutput)
+		advLoss = self.loss(tf.zeros_like(discSpeechInp),discSpeechInp)
 		
 		## defining the total loss 
 		totalLoss = realLoss+advLoss
 		return totalLoss
 
-	def genLoss(self,discOutput):
+	def genLoss(self,discSpeechInp):
 		## defining the generator Loss 
-		genLoss = self.loss(tf.ones_like(discOutput),disOutput)
+		genLoss = self.loss(tf.ones_like(discSpeechInp),discSpeechInp)
 		return genLoss
 
 
-	def discNetwork(self,latentVec):
+	def discNetwork(self):
 		## discriminator network
-		outDense =  tf.keras.layers.Dense(50)(latentVec) 
+		inputVec = tf.keras.Input(shape = [self.latenSize])
+		outDense =  tf.keras.layers.Dense(50)(inputVec) 
 		finalOut = tf.keras.layers.Dense(100)(outDense)
 		return tf.keras.Model(inputs=inputVec,outputs=finalOut)
 
 	def textDecoder(self):
 		## TODO : fill how to process the final genereated vector
-		outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.wordLen,distributedDense=512)
+		outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.wordLen,distributedDense=self.wordVecDim)
 		pass
 
 	def speechDecoder(self):
 		## TODO : fill how to process the final genereated vector
-		outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.speechLen,distributedDense=128)
+		outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.speechLen,distributedDense=self.speechVecDim)
 		pass
 		
 
@@ -112,8 +117,48 @@ class archForTrain(Model):
 
 	def reconLoss(self,actIn,actOut):
 		## function to calculate the reconstructon loss for the genere
-		tf.reduce_sum(0.5*tf.pow(actIn-actOut,2))
-		pass
+		recLoss =  tf.reduce_sum(0.5*tf.pow(actIn-actOut,2))
+		return recLoss
 
-	def train(self,inputVec):
-		pass
+
+	def Run():
+		speechEncoderModel = self.speechEncoder()
+		discriminatorModel = self.discNetwork()
+		wordEncoderModel  = self.textEncoder()
+
+		speechDecoderModel = self.speechDecoder()
+		wordDecoderModel = self.textDecoder()
+
+
+	def train(self,inputSpeechVec,inputTextVec):
+
+			with tf.gradientTape() as speechTape, tf.gradientTape() as wordTape:
+				speechLatentMean,speechLatentVar =speechEncoderModel(inputSpeechVec)
+				epsSpeech = tf.random_normal(self.latenSize)
+				zVecSpeech = speechLatentMean+tf.multiply(tf.sqrt(tf.exp(speechLatentVar)),epsSpeech)
+
+				wordLatentMean,wordLatentVar = wordEncoderModel(inputTextVec)
+				epsWord = tf.random_normal(self.latenSize)
+				zVecWord = wordLatentMean+tf.multiply(tf.sqrt(tf.exp(wordLatentVar)),epsWord)
+	
+				discrimOutSpeech = discriminatorModel(zVecSpeech)
+				discrimOutWord   = discriminatorModel(zVecWord)
+
+				decoderOutSpeech = speechDecoderModel(zVecSpeech)
+				decoderOutWord   = wordDecoderModel(zVecWord)
+
+				########################## Loss Functions ################################
+				discLossOut = self.discLoss(discwordInp=discrimOutWord,discSpeechInp=discrimOutSpeech)
+				genLossOut = self.genLoss(discSpeechInp=discrimOutSpeech)
+
+				reconsLossSpeech =self.reconLoss(decoderOutSpeech,inputSpeechVec) 
+				reconsLossWord = self.reconLoss(decoderOutWord,inputTextVec)
+
+				###########################################################################
+
+				lossSpeech = genLossOut+reconsLossSpeech
+				lossWord = reconsLossWord
+				lossDiscModel = discLossOut  
+
+				decoderSpeechGrad = 
+
