@@ -10,13 +10,18 @@ from model import Model
 
 class archForTrain(Model):
 	## defining the structure of the arhitecture for the model traijning 
-	def __init__(self,wordLength,speechLenth,latentSize,speechVecDim,wordVecDim):
+	def __init__(self,wordLength,speechLenth,latentSize,speechVecDim,wordVecDim,LAMBDA):
 		self.wordLen  = wordLength
 		self.speechLen = speechLenth
 		self.latenSize=latenSize
 		self.speechVecDim = speechVecDim
 		self.wordVecDim = wordVecDim
+		self.LAMBDA = LAMBDA
 
+
+		self.speechOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+		self.wordOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+		self.discOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 		super(archForTrain, self).__init__()
 		
 	def textEncoder(self):
@@ -156,9 +161,22 @@ class archForTrain(Model):
 
 				###########################################################################
 
-				lossSpeech = genLossOut+reconsLossSpeech
+				lossSpeech = genLossOut+self.LAMBDA*reconsLossSpeech
 				lossWord = reconsLossWord
 				lossDiscModel = discLossOut  
 
-				decoderSpeechGrad = 
+				decoderSpeechGrad = speechTape.gradient(lossSpeech,speechDecoderModel.trainable_variables)
+				encoderSpeechGrad = speechTape.gradient(lossSpeech,speechEncoderModel.trainable_variables)
+				discModelGrad     = speechTape.gradient(lossDiscModel,discriminatorModel.trainable_variables)
 
+				decoderWordGrad = wordTape.gradient(lossWord,wordDecoderModel.trainable_variables)
+				encoderWordGrad  = wordTape.gradient(lossWord,wordEncoderModel.trainable_variables)
+
+				###################### apply gradient ######################
+				self.speechOpt.apply_gradients(zip(decoderSpeechGrad, speechDecoderModel.trainable_variables))
+				self.speechOpt.apply_gradients(zip(encoderSpeechGrad, speechEncoderModel.trainable_variables))
+
+				self.wordOpt.apply_gradients(zip(decoderWordGrad, wordDecoderModel.trainable_variables))
+				self.wordOpt.apply_gradients(zip(encoderWordGrad, wordEncoderModel.trainable_variables))
+
+				self.discOpt.apply_gradients(zip(discModelGrad,discriminatorModel.trainable_variables))
