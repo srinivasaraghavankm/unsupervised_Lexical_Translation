@@ -6,24 +6,35 @@ __Desc__   : defining the architecture and related information for th code
 
 import tensorflow as tf 
 from model import Model
-
+import sys
+sys.path.insert(0,"../embPreparation")
+from charVecToNp import timitWordEMbed
 
 class archForTrain(Model):
 	## defining the structure of the arhitecture for the model traijning 
-	def __init__(self,wordLength=32,speechLength=64,latentSize=128,speechVecDim=128,wordVecDim=,LAMBDA):
+	def __init__(self,wordLength=32,speechLength=64,latentSize=128,speechVecDim=128,wordVecDim=300,batchSize = 32,EPOCH =100,LAMBDA=0.8):
 		self.wordLen  = wordLength
 		self.speechLen = speechLength
 		self.latenSize=latenSize
 		self.speechVecDim = speechVecDim
 		self.wordVecDim = wordVecDim
 		self.LAMBDA = LAMBDA
-
+		self.EPOCH = EPOCH
 
 		self.speechOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 		self.wordOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 		self.discOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 		super(archForTrain, self).__init__()
 		
+		fileNameEMbed = "../../data/char-embeddings.txt"
+		fileNameTimit = "../../data/TIMIT_words.txt"
+		finalWordMatrix,embVector = timitWordEMbed(fileNameTimit=fileNameTimit,fileNameEMbed=fileNameEMbed)
+		datasetWord = tf.data.Dataset.from_tensor_slices(finalWordMatrix)
+		datasetWord = datasetWord.cache().shuffle(256)
+		self.batchWordPipeline = datasetWord.batch(batchSize)
+
+
+
 	def textEncoder(self):
 		## defining the model for the encoder 
 		inputVec = tf.keras.layers.Input(shape=[self.wordLen,self.wordVecDim])
@@ -126,57 +137,62 @@ class archForTrain(Model):
 		return recLoss
 
 
-	def Run():
+	def Run(self):
 		speechEncoderModel = self.speechEncoder()
 		discriminatorModel = self.discNetwork()
 		wordEncoderModel  = self.textEncoder()
 
 		speechDecoderModel = self.speechDecoder()
 		wordDecoderModel = self.textDecoder()
+		def train(inputSpeechVec,inputTextVec):
+
+				with tf.gradientTape() as speechTape, tf.gradientTape() as wordTape:
+					speechLatentMean,speechLatentVar =speechEncoderModel(inputSpeechVec)
+					epsSpeech = tf.random_normal(self.latenSize)
+					zVecSpeech = speechLatentMean+tf.multiply(tf.sqrt(tf.exp(speechLatentVar)),epsSpeech)
+
+					wordLatentMean,wordLatentVar = wordEncoderModel(inputTextVec)
+					epsWord = tf.random_normal(self.latenSize)
+					zVecWord = wordLatentMean+tf.multiply(tf.sqrt(tf.exp(wordLatentVar)),epsWord)
+		
+					discrimOutSpeech = discriminatorModel(zVecSpeech)
+					discrimOutWord   = discriminatorModel(zVecWord)
+
+					decoderOutSpeech = speechDecoderModel(zVecSpeech)
+					decoderOutWord   = wordDecoderModel(zVecWord)
+
+					########################## Loss Functions ################################
+					discLossOut = self.discLoss(discwordInp=discrimOutWord,discSpeechInp=discrimOutSpeech)
+					genLossOut = self.genLoss(discSpeechInp=discrimOutSpeech)
+
+					reconsLossSpeech =self.reconLoss(decoderOutSpeech,inputSpeechVec) 
+					reconsLossWord = self.reconLoss(decoderOutWord,inputTextVec)
+
+					###########################################################################
+
+					lossSpeech = genLossOut+self.LAMBDA*reconsLossSpeech
+					lossWord = reconsLossWord
+					lossDiscModel = discLossOut  
+
+					decoderSpeechGrad = speechTape.gradient(lossSpeech,speechDecoderModel.trainable_variables)
+					encoderSpeechGrad = speechTape.gradient(lossSpeech,speechEncoderModel.trainable_variables)
+					discModelGrad     = speechTape.gradient(lossDiscModel,discriminatorModel.trainable_variables)
+
+					decoderWordGrad = wordTape.gradient(lossWord,wordDecoderModel.trainable_variables)
+					encoderWordGrad  = wordTape.gradient(lossWord,wordEncoderModel.trainable_variables)
+
+					###################### apply gradient ######################
+					self.speechOpt.apply_gradients(zip(decoderSpeechGrad, speechDecoderModel.trainable_variables))
+					self.speechOpt.apply_gradients(zip(encoderSpeechGrad, speechEncoderModel.trainable_variables))
+
+					self.wordOpt.apply_gradients(zip(decoderWordGrad, wordDecoderModel.trainable_variables))
+					self.wordOpt.apply_gradients(zip(encoderWordGrad, wordEncoderModel.trainable_variables))
+
+					self.discOpt.apply_gradients(zip(discModelGrad,discriminatorModel.trainable_variables))
+					return lossSpeech,lossWord,lossDiscModel
 
 
-	def train(self,inputSpeechVec,inputTextVec):
-
-			with tf.gradientTape() as speechTape, tf.gradientTape() as wordTape:
-				speechLatentMean,speechLatentVar =speechEncoderModel(inputSpeechVec)
-				epsSpeech = tf.random_normal(self.latenSize)
-				zVecSpeech = speechLatentMean+tf.multiply(tf.sqrt(tf.exp(speechLatentVar)),epsSpeech)
-
-				wordLatentMean,wordLatentVar = wordEncoderModel(inputTextVec)
-				epsWord = tf.random_normal(self.latenSize)
-				zVecWord = wordLatentMean+tf.multiply(tf.sqrt(tf.exp(wordLatentVar)),epsWord)
-	
-				discrimOutSpeech = discriminatorModel(zVecSpeech)
-				discrimOutWord   = discriminatorModel(zVecWord)
-
-				decoderOutSpeech = speechDecoderModel(zVecSpeech)
-				decoderOutWord   = wordDecoderModel(zVecWord)
-
-				########################## Loss Functions ################################
-				discLossOut = self.discLoss(discwordInp=discrimOutWord,discSpeechInp=discrimOutSpeech)
-				genLossOut = self.genLoss(discSpeechInp=discrimOutSpeech)
-
-				reconsLossSpeech =self.reconLoss(decoderOutSpeech,inputSpeechVec) 
-				reconsLossWord = self.reconLoss(decoderOutWord,inputTextVec)
-
-				###########################################################################
-
-				lossSpeech = genLossOut+self.LAMBDA*reconsLossSpeech
-				lossWord = reconsLossWord
-				lossDiscModel = discLossOut  
-
-				decoderSpeechGrad = speechTape.gradient(lossSpeech,speechDecoderModel.trainable_variables)
-				encoderSpeechGrad = speechTape.gradient(lossSpeech,speechEncoderModel.trainable_variables)
-				discModelGrad     = speechTape.gradient(lossDiscModel,discriminatorModel.trainable_variables)
-
-				decoderWordGrad = wordTape.gradient(lossWord,wordDecoderModel.trainable_variables)
-				encoderWordGrad  = wordTape.gradient(lossWord,wordEncoderModel.trainable_variables)
-
-				###################### apply gradient ######################
-				self.speechOpt.apply_gradients(zip(decoderSpeechGrad, speechDecoderModel.trainable_variables))
-				self.speechOpt.apply_gradients(zip(encoderSpeechGrad, speechEncoderModel.trainable_variables))
-
-				self.wordOpt.apply_gradients(zip(decoderWordGrad, wordDecoderModel.trainable_variables))
-				self.wordOpt.apply_gradients(zip(encoderWordGrad, wordEncoderModel.trainable_variables))
-
-				self.discOpt.apply_gradients(zip(discModelGrad,discriminatorModel.trainable_variables))
+		for epNo in self.EPOCH:
+			for wordBatch in self.batchWordPipeline:
+				for speechBatch in self.speechWordPipeline:
+					lossSpeech,lossWord,lossDic = train(inputSpeechVec=speechBatch,inputTextVec=wordBatch)

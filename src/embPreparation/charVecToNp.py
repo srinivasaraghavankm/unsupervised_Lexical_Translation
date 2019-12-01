@@ -19,11 +19,12 @@ def createDict(fileName):
 		
 		return charDict
 
-def timitWordEMbed(fileName,charDict,maxCharLen=32,embedingLen=300):
+def timitWordEMbed(fileNameTimit,fileNameEMbed,maxCharLen=32,embedingLen=300):
 	### function to crate word embedding based on charecter based embedding 
+	charDict = createDict(fileName=fileNameEMbed)
 	arrayOfWords = []
 	dictOfWordMap = {}
-	with open(fileName,"rb") as fileNameReader:
+	with open(fileNameTimit,"rb") as fileNameReader:
 		for line in fileNameReader:
 			word = line.rstrip().decode()
 			wordEmbRep = []
@@ -40,6 +41,6 @@ def timitWordEMbed(fileName,charDict,maxCharLen=32,embedingLen=300):
 if __name__=="__main__":
 	fileNameEMbed = "../../data/char-embeddings.txt"
 	fileNameTimit = "../../data/TIMIT_words.txt"
-	dictOut = createDict(fileNameEMbed)
-	finalWordMatrix,embVector = timitWordEMbed(fileName=fileNameTimit,charDict=dictOut)
+	# dictOut = createDict(fileNameEMbed)
+	finalWordMatrix,embVector = timitWordEMbed(fileNameTimit=fileNameTimit,fileNameEMbed=fileNameEMbed)
 	print(finalWordMatrix.shape)
