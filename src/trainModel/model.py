@@ -7,7 +7,7 @@ __desc__   : code for unsupervised mapping of the data
 ## TODO : Define model structure 
 ## TODO : Define train and gradient tape   
 
-import tf 
+import  tensorflow as tf 
 
 class Model(object):
 	def __init__(self,vocabSize,embedShape):

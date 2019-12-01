@@ -4,15 +4,15 @@ __date__   : 13-11-2019
 __Desc__   : defining the architecture and related information for th code 
 """
 
-import tf 
+import tensorflow as tf 
 from model import Model
 
 
 class archForTrain(Model):
 	## defining the structure of the arhitecture for the model traijning 
-	def __init__(self,wordLength,speechLenth,latentSize,speechVecDim,wordVecDim,LAMBDA):
+	def __init__(self,wordLength=32,speechLength=64,latentSize=128,speechVecDim=128,wordVecDim=,LAMBDA):
 		self.wordLen  = wordLength
-		self.speechLen = speechLenth
+		self.speechLen = speechLength
 		self.latenSize=latenSize
 		self.speechVecDim = speechVecDim
 		self.wordVecDim = wordVecDim
