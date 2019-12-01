@@ -17,19 +17,21 @@ class archForTrain(Model):
 		
 	def textEncoder(self):
 		## defining the model for the encoder 
-		inputVec = tf.keras.layers.Input(shape=[None])
+		inputVec = tf.keras.layers.Input(shape=[None,128])
+		## zero paadding 
 		archStructure = [
 
 						[self.convStruct(100,2),self.convStruct(50,1)],
 						[self.convStruct(100,3),self.convStruct(50,1)],
 						[self.convStruct(100,4),self.convStruct(50,1)],
-						[self.convStruct(100,4),self.convStruct(50,1)], 
+						[self.convStruct(100,5),self.convStruct(50,1)], 
 					]
 		
 		outputList = []
+
 		for idx, listPerConv in ennumerate(archStructure):
 			x = inputVec
-			for elm in  archStructure:
+			for elm in  listPerConv:
 				x = elm(x)
 			outputList.append(x)
 
@@ -58,7 +60,7 @@ class archForTrain(Model):
 		outputList = []
 		for idx, listPerConv in ennumerate(archStructure):
 			x = inputVec
-			for elm in  archStructure:
+			for elm in  listPerConv:
 				x = elm(x)
 			outputList.append(x)
 
@@ -88,25 +90,30 @@ class archForTrain(Model):
 		return genLoss
 
 
-	def discNetwork(self,):
-		pass
+	def discNetwork(self,latentVec):
+		## discriminator network
+		outDense =  tf.keras.layers.Dense(50)(latentVec) 
+		finalOut = tf.keras.layers.Dense(100)(outDense)
+		return tf.keras.Model(inputs=inputVec,outputs=finalOut)
 
 	def textDecoder(self):
 		## TODO : fill how to process the final genereated vector
-		outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.wordLen)
+		outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.wordLen,distributedDense=512)
 		pass
 
 	def speechDecoder(self):
 		## TODO : fill how to process the final genereated vector
-		outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.speechLen)
+		outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.speechLen,distributedDense=128)
 		pass
 		
 
 	def klLoss(self):
 		pass
 
-	def reconLoss(self):
+	def reconLoss(self,actIn,actOut):
+		## function to calculate the reconstructon loss for the genere
+		tf.reduce_sum(0.5*tf.pow(actIn-actOut,2))
 		pass
 
-	def train(self):
+	def train(self,inputVec):
 		pass

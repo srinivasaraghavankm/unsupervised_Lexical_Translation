@@ -72,7 +72,7 @@ class Model(object):
 					)
 			else:
 				output.add(
-					tf.keras.layers..LSTM(hdLayr, activation='relu',  return_sequences=False)
+					tf.keras.layers.LSTM(hdLayr, activation='relu',  return_sequences=False)
 					)
 
 		return output
