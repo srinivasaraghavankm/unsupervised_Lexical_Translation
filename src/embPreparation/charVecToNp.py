@@ -38,6 +38,21 @@ def timitWordEMbed(fileNameTimit,fileNameEMbed,maxCharLen=32,embedingLen=300):
 			dictOfWordMap[word] = arrayOfWords
 	finalWordMatrix = np.vstack(arrayOfWords)
 	return finalWordMatrix,dictOfWordMap
+
+def timitSpeechEmbed(z_vqListReader,maxFrameLen=180,embedBits=100):
+	arrayOfSpeechVec = []
+	dictOfSpeechVecMap = {}
+	for audioSegment in sorted(z_vqListReader.keys()):
+		padZero=[]
+		for _ in range(maxFrameLen- int(z_vqListReader[audioSegment].shape[0])):
+			padZero.append(np.zeros(embedBits,dtype=np.float32))
+		padZeroNp=np.asarray(padZero,dtype=np.float32)
+		speechOut=np.vstack((z_vqListReader[audioSegment],padZeroNp))
+		speechOut = speechOut[np.newaxis,:]
+		arrayOfSpeechVec.append(speechOut)
+		dictOfSpeechVecMap[audioSegment]=speechOut
+	finalSpeechMatrix = np.vstack(arrayOfSpeechVec)
+	return finalSpeechMatrix,dictOfSpeechVecMap
 if __name__=="__main__":
 	fileNameEMbed = "../../data/char-embeddings.txt"
 	fileNameTimit = "../../data/TIMIT_words.txt"
