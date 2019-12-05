@@ -30,13 +30,6 @@ class archForTrain(Model):
 		self.discOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 		super(archForTrain, self).__init__()
 		
-		fileNameEMbed = "../../data/char-embeddings.txt"
-		fileNameTimit = "../../data/TIMIT_words.txt"
-		finalWordMatrix,embVector = timitWordEMbed(fileNameTimit=fileNameTimit,fileNameEMbed=fileNameEMbed)
-		datasetWord = tf.data.Dataset.from_tensor_slices(finalWordMatrix)
-		datasetWord = datasetWord.cache().shuffle(256)
-		self.batchWordPipeline = datasetWord.batch(batchSize)
-
 
 
 	def textEncoder(self):
@@ -45,15 +38,15 @@ class archForTrain(Model):
 		## zero paadding 
 		archStructure = [
 
-						[self.convStruct(100,2),self.convStruct(50,1)],
-						[self.convStruct(100,3),self.convStruct(50,1)],
-						[self.convStruct(100,4),self.convStruct(50,1)],
-						[self.convStruct(100,5),self.convStruct(50,1)], 
+						[self.convStruct(100,2,1),self.convStruct(50,1,1)],
+						[self.convStruct(100,3,1),self.convStruct(50,1,1)],
+						[self.convStruct(100,4,1),self.convStruct(50,1,1)],
+						[self.convStruct(100,5,1),self.convStruct(50,1,1)], 
 					]
 		
 		outputList = []
 
-		for idx, listPerConv in ennumerate(archStructure):
+		for idx, listPerConv in enumerate(archStructure):
 			x = inputVec
 			for elm in  listPerConv:
 				x = elm(x)
@@ -74,14 +67,14 @@ class archForTrain(Model):
 		inputVec = tf.keras.layers.Input(shape=[self.speechLen,self.speechVecDim])
 		archStructure = [
 
-						[self.convStruct(100,5),self.convStruct(50,1)],
-						[self.convStruct(100,25),self.convStruct(50,1)],
-						[self.convStruct(100,50),self.convStruct(50,1)],
-						[self.convStruct(100,75),self.convStruct(50,1)] 
+						[self.convStruct(100,5,1),self.convStruct(50,1,1)],
+						[self.convStruct(100,25,1),self.convStruct(50,1,1)],
+						[self.convStruct(100,50,1),self.convStruct(50,1,1)],
+						[self.convStruct(100,75,1),self.convStruct(50,1,1)] 
 					]
 		
 		outputList = []
-		for idx, listPerConv in ennumerate(archStructure):
+		for idx, listPerConv in enumerate(archStructure):
 			x = inputVec
 			for elm in  listPerConv:
 				x = elm(x)
@@ -149,7 +142,7 @@ class archForTrain(Model):
 		wordDecoderModel = self.textDecoder()
 
 		wordDataset = timitWordEMbed(fileNameTimit=self.wordTimitData,fileNameEMbed=self.charEmbData)
-		speechDataSet = timitSpeechEmbed(z_vqListReader=self.speechEmbData)
+		speechDataSet = timitSpeechEmbed(z_vqListFile=self.speechEmbData)
 		
 
 		wordDataset =  tf.data.Dataset.from_tensor_slices(wordDataset)

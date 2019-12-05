@@ -39,9 +39,10 @@ def timitWordEMbed(fileNameTimit,fileNameEMbed,maxCharLen=32,embedingLen=300):
 	finalWordMatrix = np.vstack(arrayOfWords)
 	return finalWordMatrix,dictOfWordMap
 
-def timitSpeechEmbed(z_vqListReader,maxFrameLen=180,embedBits=100):
+def timitSpeechEmbed(z_vqListFile,maxFrameLen=180,embedBits=100):
 	arrayOfSpeechVec = []
 	dictOfSpeechVecMap = {}
+        z_vqListReader=np.load(z_vqListFile)
 	for audioSegment in sorted(z_vqListReader.keys()):
 		padZero=[]
 		for _ in range(maxFrameLen- int(z_vqListReader[audioSegment].shape[0])):

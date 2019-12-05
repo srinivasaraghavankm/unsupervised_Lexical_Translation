@@ -62,18 +62,18 @@ class Model(object):
 	def lstmEncoder(self,layerInfo=[],timestamp=10,inputShape = ()):
 		# definig the lstm Structure for the model. 
 		output = tf.keras.Sequential()
-		for idx,hdLayr in ennumerate(layerInfo):
+		for idx,hdLayer in enumerate(layerInfo):
 			if idx == 0:
 				output.add(
-					tf.keras.layers.LSTM(hdLayr, activation='relu', input_shape=inputShape, return_sequences=True)
+					tf.keras.layers.LSTM(hdLayer, activation='relu', input_shape=inputShape, return_sequences=True)
 					)
 			elif idx!= len(layerInfo)-1:
 				output.add(
-					tf.keras.layers.LSTM(hdLayr, activation='relu',  return_sequences=True)
+					tf.keras.layers.LSTM(hdLayer, activation='relu',  return_sequences=True)
 					)
 			else:
 				output.add(
-					tf.keras.layers.LSTM(hdLayr, activation='relu',  return_sequences=False)
+					tf.keras.layers.LSTM(hdLayer, activation='relu',  return_sequences=False)
 					)
 
 		return output
@@ -81,7 +81,7 @@ class Model(object):
 		## defining the lstm decoder for the same network
 		output = tf.keras.Sequential()
 		output.add(tf.keras.layers.RepeatVector(timestamp))
-		for idx,hdLayer in layerInfo:
-			output.add(tf.keras.layers.LSTM(hdLayr, activation='relu', return_sequences=True))
+		for idx,hdLayer in enumerate(layerInfo):
+			output.add(tf.keras.layers.LSTM(hdLayer, activation='relu', return_sequences=True))
 		output.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(distributedDense)))
 		return output
