@@ -1,5 +1,5 @@
 """
-__author__ : Kumar shubham 
+__author__ : Kumar shubham, Srinivasa Raghavan K M
 __date__   : 13-11-2019
 __Desc__   : defining the architecture and related information for th code 
 """
@@ -15,7 +15,7 @@ class archForTrain(Model):
 	def __init__(self,wordLength=32,wordTimitData="../../data/TIMIT_words.txt",charEmbData="../../data/char-embeddings.txt",speechEmbData="../../data/output_auxiliary_z_vq_encoding.npz",speechLength=180,latentSize=64,speechVecDim=100,wordVecDim=300,batchSize = 32,EPOCH =100,LAMBDA=0.8):
 		self.wordLen  = wordLength
 		self.speechLen = speechLength
-		self.latenSize=latenSize
+		self.latenSize=latentSize
 		self.speechVecDim = speechVecDim
 		self.wordVecDim = wordVecDim
 		self.LAMBDA = LAMBDA

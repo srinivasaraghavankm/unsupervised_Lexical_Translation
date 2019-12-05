@@ -1,5 +1,5 @@
 """
-__author__ : Kumar shubham, srinivas
+__author__ : Kumar shubham, Srinivasa Raghavan K M
 __place__ : IIIT Bangalore
 __date__ : 01-12-2019 
 """

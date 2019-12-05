@@ -1,5 +1,5 @@
 """
-__author__ : Kumar shubham 
+__author__ : Kumar shubham , Srinivasa Raghavan K M  
 __date__   :  07-11-2019
 __desc__   : code for unsupervised mapping of the data
 """
@@ -10,16 +10,16 @@ __desc__   : code for unsupervised mapping of the data
 import  tensorflow as tf 
 
 class Model(object):
-	def __init__(self,vocabSize,embedShape):
+	#def __init__(self):
 		# definig the structure of the CNN model 
 		"""
 		param :
 		 vocabSize   : size of the vocabulary in the dictionary
 		 embedShapee : shape of the embed layer  
 		"""
-
-		self.vocabSz = vocabSize
-		self.embedShape = embedShape
+         #       pass
+		#self.vocabSz = vocabSize
+		#self.embedShape = embedShape
 
 	def convStruct(self,outChannel,kerSize,stride,applyBatchNorm=True,applyDropOut=True):
 		## function for downsampling the image 
@@ -76,7 +76,7 @@ class Model(object):
 					)
 
 		return output
-	def manyToManylstmDecoder(self,layerInfo=[],timestamp=10,distributedDense,inputShape=()):
+	def manyToManylstmDecoder(self,layerInfo=[],timestamp=10,distributedDense=100,inputShape=()):
 		## defining the lstm decoder for the same network
 		output = tf.keras.Sequential()
 		output.add(tf.keras.layers.RepeatVector(timestamp))
