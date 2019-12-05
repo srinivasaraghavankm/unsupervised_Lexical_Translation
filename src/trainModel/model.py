@@ -10,7 +10,8 @@ __desc__   : code for unsupervised mapping of the data
 import  tensorflow as tf 
 
 class Model(object):
-	#def __init__(self):
+	def __init__(self):
+		pass
 		# definig the structure of the CNN model 
 		"""
 		param :
