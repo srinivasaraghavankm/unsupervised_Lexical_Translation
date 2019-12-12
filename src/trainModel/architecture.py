@@ -12,7 +12,7 @@ from charVecToNp import timitWordEMbed,timitSpeechEmbed
 
 class archForTrain(Model):
     ## defining the structure of the arhitecture for the model traijning 
-    def __init__(self,wordLength=32,wordTimitData="../../data/TIMIT_words.txt",charEmbData="../../data/char-embeddings.txt",speechEmbData="../../data/output_auxiliary_z_vq_encoding.npz",speechLength=180,latentSize=64,speechVecDim=100,wordVecDim=300,batchSize = 32,EPOCH =100,LAMBDA=0.8):
+    def __init__(self,wordLength=32,wordTimitData="../../data/TIMIT_words.txt",charEmbData="../../data/char-embeddings.txt",speechEmbData="../../data/output_auxiliary_z_vq_encoding.npz",speechLength=180,latentSize=64,speechVecDim=100,wordVecDim=300,batchSize = 32,EPOCH =100,LAMBDA=0.8,wbn=0,sbn=0):
         self.wordLen  = wordLength
         self.speechLen = speechLength
         self.latenSize=latentSize
@@ -20,10 +20,13 @@ class archForTrain(Model):
         self.wordVecDim = wordVecDim
         self.LAMBDA = LAMBDA
         self.EPOCH = EPOCH
-
+        self.wbn = wbn
+        self.sbn = sbn
         self.wordTimitData = wordTimitData
         self.charEmbData=charEmbData
         self.speechEmbData = speechEmbData
+
+        self.loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
         self.speechOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
         self.wordOpt = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
@@ -116,13 +119,15 @@ class archForTrain(Model):
     def textDecoder(self):
         ## TODO : fill how to process the final genereated vector
         outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.wordLen,distributedDense=self.wordVecDim)
-        pass
+        return(outputModel)
+        #pass
 
     def speechDecoder(self):
         ## TODO : fill how to process the final genereated vector
+        #inputVec = tf.keras.layers.Input(shape=[16,self.speechLen,self.speechVecDim])
         outputModel  = self.manyToManylstmDecoder(layerInfo=[200,100],timestamp=self.speechLen,distributedDense=self.speechVecDim)
-        pass
-        
+        return(outputModel)
+        #pass
 
     def klLoss(self):
         pass
@@ -134,6 +139,7 @@ class archForTrain(Model):
 
 
     def Run(self):
+        print("Model Creation")
         speechEncoderModel = self.speechEncoder()
         discriminatorModel = self.discNetwork()
         wordEncoderModel  = self.textEncoder()
@@ -141,34 +147,46 @@ class archForTrain(Model):
         speechDecoderModel = self.speechDecoder()
         wordDecoderModel = self.textDecoder()
 
-        wordDataset = timitWordEMbed(fileNameTimit=self.wordTimitData,fileNameEMbed=self.charEmbData)
-        speechDataSet = timitSpeechEmbed(z_vqListFile=self.speechEmbData)
+        print("Data set loading")
+        wordEmbedDataset,_ = timitWordEMbed(fileNameTimit=self.wordTimitData,fileNameEMbed=self.charEmbData)
+        speechEmbedDataset,_ = timitSpeechEmbed(z_vqListFile=self.speechEmbData)
         
-
-        wordDataset =  tf.data.Dataset.from_tensor_slices(wordDataset)
+        print(wordEmbedDataset.shape)
+        print(speechEmbedDataset.shape)
+        print("Creating word pipeline")
+        wordDataset =  tf.data.Dataset.from_tensor_slices(wordEmbedDataset)
         wordDataset =  wordDataset.cache().shuffle(256)
-        wordDataset = wordDataset.repeat().batch(self.wordBatch)
-
-        speechDataset =  tf.data.Dataset.from_tensor_slices(speechDataset)
-        speechDataset =  speechDataset.cache().shuffle(256)
-        speechDataset = speechDataset.repeat().batch(self.speechBatch)
+        #wordDataset = wordDataset.repeat().batch(self.wordBatch)
+        wordDataset = wordDataset.repeat().batch(16)
         
 
+        print("Creating speech pipeline")
+        speechDataset =  tf.data.Dataset.from_tensor_slices(speechEmbedDataset)
+        speechDataset =  speechDataset.cache().shuffle(256)
+        #speechDataset = speechDataset.repeat().batch(self.speechBatch)
+        speechDataset = speechDataset.repeat().batch(16)
+        
+
+        print("Creating train pipeline")
         def train(inputSpeechVec,inputTextVec):
 
-            with tf.gradientTape() as speechTape, tf.gradientTape() as wordTape:
+            #with tf.GradientTape() as speechTape, tf.GradientTape() as wordTape:
+            with tf.GradientTape(persistent=True) as speechTape, tf.GradientTape(persistent=True) as wordTape:
                 speechLatentMean,speechLatentVar =speechEncoderModel(inputSpeechVec)
-                epsSpeech = tf.random_normal(self.latenSize)
+                epsSpeech = tf.random.normal(speechLatentMean.shape)
                 zVecSpeech = speechLatentMean+tf.multiply(tf.sqrt(tf.exp(speechLatentVar)),epsSpeech)
 
                 wordLatentMean,wordLatentVar = wordEncoderModel(inputTextVec)
-                epsWord = tf.random_normal(self.latenSize)
+                epsWord = tf.random.normal(wordLatentMean.shape)
                 zVecWord = wordLatentMean+tf.multiply(tf.sqrt(tf.exp(wordLatentVar)),epsWord)
     
                 discrimOutSpeech = discriminatorModel(zVecSpeech)
                 discrimOutWord   = discriminatorModel(zVecWord)
-
+        
+                #print("No problem")
+                print(tf.shape(zVecSpeech))
                 decoderOutSpeech = speechDecoderModel(zVecSpeech)
+                #print(decoderOutSpeech)
                 decoderOutWord   = wordDecoderModel(zVecWord)
 
                 ########################## Loss Functions ################################
@@ -201,12 +219,19 @@ class archForTrain(Model):
                 self.discOpt.apply_gradients(zip(discModelGrad,discriminatorModel.trainable_variables))
                 return lossSpeech,lossWord,lossDiscModel
 
-
-        for epNo in self.EPOCH:
+        #int wrd_btch_no = 0 
+        #int spch.btch_no = 0
+        for epNo in range(self.EPOCH):
+            print("Epoch Number :",epNo)
             for wordBatch in wordDataset:
+                print("inside wordBatch")
+                self.wbn=self.wbn+1
                 for speechBatch in speechDataset:
+                    print("inside speechBatch")
+                    self.sbn=self.sbn+1
                     lossSpeech,lossWord,lossDic = train(inputSpeechVec=speechBatch,inputTextVec=wordBatch)
-                    print("EPISODE NO : {:4d}  Batch Speech NO : {:4d} batch Word No :{:2f}   LOSS  speech : {:2f} LOSS Word : {:2f} loss discriminator : {:2f}".format())
+                    print("EPISODE NO : {:4d}  Batch Speech NO : {:4d} batch Word No :{:2f}   LOSS  speech : {:2f} LOSS Word : {:2f} loss discriminator : {:2f}".format(epNo,self.sbn,self.wbn,lossSpeech,lossWord,lossDic))
+                    #print("EPISODE NO : {:4d}  Batch Speech NO : {:4d} batch Word No :{:2f}   LOSS  speech : {:2f} LOSS Word : {:2f} loss discriminator : {:2f}".format())
 
 
 if __name__=="__main__":

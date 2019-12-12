@@ -80,7 +80,7 @@ class Model(object):
     def manyToManylstmDecoder(self,layerInfo=[],timestamp=10,distributedDense=100,inputShape=()):
         ## defining the lstm decoder for the same network
         output = tf.keras.Sequential()
-        output.add(tf.keras.layers.RepeatVector(timestamp))
+        #output.add(tf.keras.layers.RepeatVector(timestamp))
         for idx,hdLayer in enumerate(layerInfo):
             output.add(tf.keras.layers.LSTM(hdLayer, activation='relu', return_sequences=True))
         output.add(tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(distributedDense)))
