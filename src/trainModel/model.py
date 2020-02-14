@@ -1,5 +1,5 @@
 """
-__author__ : Kumar shubham , Srinivasa Raghavan K M  
+__author__ : Srinivasa Raghavan K M , Kumar shubham 
 __date__   :  07-11-2019
 __desc__   : code for unsupervised mapping of the data
 """
